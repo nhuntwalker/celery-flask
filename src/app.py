@@ -3,8 +3,12 @@ from flask import (
     Flask,
     render_template,
     request,
-    session
+    session,
+    flash,
+    redirect,
+    url_for
 )
+from flask_mail import Message, Mail
 from celery import Celery
 import os
 
@@ -55,3 +59,11 @@ def index():
         flash('An email will be sent to {0} in one minute'.format(email))
 
     return redirect(url_for('index'))
+
+
+@celery.task
+def send_async_email(msg):
+    """Background task to send an email with Flask-Mail."""
+    mail = Mail()
+    with app.app_context():
+        mail.send(msg)
