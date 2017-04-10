@@ -1,6 +1,7 @@
 """."""
 from flask import Flask
 from celery import Celery
+import os
 
 # start a new Flask app
 app = Flask(__name__)
@@ -16,3 +17,11 @@ celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
 
 # updates celery configuration with the rest of the app configuration
 celery.conf.update(app.config)
+
+# Flask-Mail configuration
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER')
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER')
