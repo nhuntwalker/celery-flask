@@ -1,5 +1,10 @@
 """."""
-from flask import Flask
+from flask import (
+    Flask,
+    render_template,
+    request,
+    session
+)
 from celery import Celery
 import os
 
@@ -25,3 +30,28 @@ app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER')
+
+
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    """View for the home route."""
+    if request.method == 'GET':
+        return render_template('index.html', email=session.get('email', ''))
+    email = request.form['email']
+    session['email'] = email
+
+    # send the email
+    msg = Message('Hello from Flask', recipients=[request.form['email']])
+    msg.body = 'This is a test email sent from a background Celery task.'
+
+    if request.form['submit'] == 'Send':
+        # send right away
+        send_async_email.delay(msg)
+        flash('Sending email to {0}'.format(email))
+
+    else:
+        # send in one minute
+        send_async_email.delay(msg)
+        flash('An email will be sent to {0} in one minute'.format(email))
+
+    return redirect(url_for('index'))
