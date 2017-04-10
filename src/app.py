@@ -14,12 +14,16 @@ import os
 
 # start a new Flask app
 app = Flask(__name__)
+mail = Mail(app)
 
 # set the location of the message broker
 app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
 
 # sets the location of where results can be pulled from
 app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
+
+# sets the secret key so that we can use the session on the request object
+app.secret_key = os.environ.get('SECRET_KEY')
 
 # initialize celery for this app, while setting the broker
 celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
@@ -44,26 +48,33 @@ def index():
     email = request.form['email']
     session['email'] = email
 
-    # send the email
-    msg = Message('Hello from Flask', recipients=[request.form['email']])
-    msg.body = 'This is a test email sent from a background Celery task.'
+    message_details = {
+        "subject": "Hello from Flask",
+        "recipients": [request.form['email']],
+        "body": "This is a test email sent from a background Celery task."
+    }
 
+    # send the email
     if request.form['submit'] == 'Send':
         # send right away
-        send_async_email.delay(msg)
+        send_async_email.delay(message_details)
         flash('Sending email to {0}'.format(email))
 
     else:
         # send in one minute
-        send_async_email.delay(msg)
+        send_async_email.delay(message_details)
         flash('An email will be sent to {0} in one minute'.format(email))
 
     return redirect(url_for('index'))
 
 
 @celery.task
-def send_async_email(msg):
+def send_async_email(msg_details):
     """Background task to send an email with Flask-Mail."""
-    mail = Mail()
+    msg = Message(
+        msg_details['subject'],
+        msg_details['recipients'])
+    msg.body = msg_details['body']
+
     with app.app_context():
         mail.send(msg)
